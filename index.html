@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minimalist Todo App</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <h1>Task Manager</h1>
+      <p class="app-subtitle">오늘의 할 일을 생산적으로 관리해보세요.</p>
+    </header>
+
+    <form id="todo-form" class="todo-form">
+      <input type="text" id="todo-input" placeholder="새로운 할 일을 입력하세요..." autocomplete="off">
+      <button type="submit" id="add-button">추가</button>
+    </form>
+
+    <ul id="todo-list" class="todo-list"></ul>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

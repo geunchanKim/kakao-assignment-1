@@ -1,0 +1,164 @@
+/* 글로벌 스타일 초기화 및 폰트 설정 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  background-color: #f8f9fa;
+  color: #1a1a1a;
+  display: flex;
+  justify-content: center;
+  align-items: start;
+  min-height: 100vh;
+  padding: 4rem 1rem;
+}
+
+/* 메인 앱 컨테이너 */
+.app-container {
+  background-color: #ffffff;
+  width: 100%;
+  max-width: 520px;
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+/* 헤더 스타일 */
+.app-header {
+  margin-bottom: 2rem;
+}
+
+.app-header h1 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 0.4rem;
+}
+
+.app-subtitle {
+  font-size: 0.9rem;
+  color: #868e96;
+}
+
+/* 입력 폼 스타일 */
+.todo-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.todo-form input {
+  flex: 1;
+  padding: 0.8rem 1rem;
+  font-size: 0.95rem;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+/* 입력창 포커스 시 메인 컬러 적용 */
+.todo-form input:focus {
+  border-color: #672be0;
+}
+
+.todo-form button {
+  background-color: #672be0;
+  color: #ffffff;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.todo-form button:hover {
+  background-color: #5320b8;
+}
+
+/* Todo 리스트 및 아이템 스타일 */
+.todo-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.todo-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #f1f3f5;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.todo-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+/* Todo 텍스트 영역 */
+.todo-text {
+  font-size: 0.95rem;
+  color: #343a40;
+  flex: 1;
+  margin-right: 1rem;
+  word-break: break-all;
+  transition: color 0.2s, text-decoration 0.2s;
+}
+
+/* 완료 상태 스타일 */
+.todo-item.completed {
+  background-color: #f1f3f5;
+  opacity: 0.7;
+}
+
+.todo-item.completed .todo-text {
+  text-decoration: line-through;
+  color: #adb5bd;
+}
+
+/* 버튼 그룹 및 액션 버튼 스타일 */
+.button-group {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.action-btn {
+  border: none;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  color: #495057;
+  transition: all 0.2s;
+}
+
+.action-btn.complete-btn:hover {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border-color: #c8e6c9;
+}
+
+.action-btn.edit-btn:hover {
+  background-color: #f3e5f5;
+  color: #672be0;
+  border-color: #e1bee7;
+}
+
+.action-btn.delete-btn:hover {
+  background-color: #ffebee;
+  color: #c62828;
+  border-color: #ffcdd2;
+}
