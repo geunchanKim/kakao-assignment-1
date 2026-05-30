@@ -1,11 +1,14 @@
 // --- 상태 관리 (State) ---
-// Todo 데이터를 저장할 배열 객체
 let todos = [];
+// 현재 어떤 필터가 선택되어 있는지 저장하는 상태 추가 ('all', 'active', 'completed')
+let currentFilter = 'all';
 
 // --- DOM 요소 선택 ---
 const todoForm = document.getElementById('todo-form');
 const todoInput = document.getElementById('todo-input');
 const todoList = document.getElementById('todo-list');
+// 필터 버튼들을 모두 선택
+const filterButtons = document.querySelectorAll('.filter-btn');
 
 // --- 핵심 기능 함수 (Functions) ---
 
@@ -16,8 +19,15 @@ function renderTodos() {
   // 기존 리스트 항목을 모두 비우기
   todoList.innerHTML = '';
 
-  // todos 배열을 순회하며 HTML 요소 생성
-  todos.forEach(todo => {
+  // 현재 필터 상태에 맞게 데이터 필터링
+  const filteredTodos = todos.filter(todo => {
+    if (currentFilter === 'active') return !todo.completed;   // 진행 중: 완료되지 않은 것만
+    if (currentFilter === 'completed') return todo.completed; // 완료: 완료된 것만
+    return true;                                              // 전체: 모두 반환
+  });
+
+  // 필터링된 배열을 순회하며 HTML 요소 생성
+  filteredTodos.forEach(todo => {
     const li = document.createElement('li');
     li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
 
@@ -61,30 +71,25 @@ function renderTodos() {
  * 새로운 Todo를 추가하는 함수 (Create)
  */
 function addTodo(event) {
-  // 폼 제출 시 페이지 새로고침 방지
   event.preventDefault();
 
   const text = todoInput.value.trim();
 
-  // 유효성 검사: 빈 값 입력 차단
   if (!text) {
     alert('할 일을 입력해주세요!');
     todoInput.focus();
     return;
   }
 
-  // 새로운 Todo 객체 정의
   const newTodo = {
-    id: Date.now(), // 고유 ID값 생성용 타임스탬프
+    id: Date.now(),
     text: text,
     completed: false
   };
 
-  // 데이터 추가 및 화면 갱신
   todos.push(newTodo);
   renderTodos();
 
-  // 입력창 초기화
   todoInput.value = '';
 }
 
@@ -105,10 +110,8 @@ function editTodoText(id) {
   const targetTodo = todos.find(todo => todo.id === id);
   if (!targetTodo) return;
 
-  // Prompt 창을 이용해 미니멀하게 새 텍스트 입력 유도
   const newText = prompt('수정할 내용을 입력하세요:', targetTodo.text);
 
-  // 취소 버튼을 누르거나 공백만 입력한 경우 무시
   if (newText === null) return;
   if (!newText.trim()) {
     alert('내용을 입력해야 수정할 수 있습니다.');
@@ -127,5 +130,25 @@ function deleteTodo(id) {
   renderTodos();
 }
 
+/**
+ * 필터 탭을 변경하고 스타일을 갱신하는 함수
+ */
+function changeFilter(event) {
+  // 클릭된 버튼의 data-filter 값 가져오기
+  currentFilter = event.target.dataset.filter;
+
+  // 모든 필터 버튼에서 active 클래스 제거 후, 클릭된 버튼에만 추가
+  filterButtons.forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+
+  // 필터가 변경되었으므로 리스트 다시 그리기
+  renderTodos();
+}
+
 // --- 이벤트 리스너 등록 ---
 todoForm.addEventListener('submit', addTodo);
+
+// 각 필터 버튼에 클릭 이벤트 리스너 일괄 등록
+filterButtons.forEach(btn => {
+  btn.addEventListener('click', changeFilter);
+});
