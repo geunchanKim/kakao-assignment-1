@@ -3,21 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minimalist Todo App</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <title>Minimalist Todo App - Weekly</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app-container">
     <header class="app-header">
       <h1>Task Manager</h1>
-      <p class="app-subtitle">오늘의 할 일을 생산적으로 관리해보세요.</p>
+      <p class="app-subtitle">주간 일정을 관리하며 생산성을 높여보세요.</p>
     </header>
 
-    <div class="date-navigator">
-      <button id="prev-date-btn" class="date-nav-btn" aria-label="이전 날짜">&#10094;</button>
-      <h2 id="current-date-display" class="current-date"></h2>
-      <button id="next-date-btn" class="date-nav-btn" aria-label="다음 날짜">&#10095;</button>
+    <div class="weekly-calendar">
+      <div class="calendar-control">
+        <button id="prev-week-btn" class="nav-btn" aria-label="이전 주">&#10094;</button>
+        <h2 id="month-display" class="month-title">2026년 05월</h2>
+        <button id="next-week-btn" class="nav-btn" aria-label="다음 주">&#10095;</button>
+      </div>
+      
+      <div id="days-container" class="days-container"></div>
     </div>
 
     <form id="todo-form" class="todo-form">

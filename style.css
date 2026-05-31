@@ -20,7 +20,7 @@ body {
 .app-container {
   background-color: #ffffff;
   width: 100%;
-  max-width: 520px;
+  max-width: 540px;
   border-radius: 16px;
   padding: 2.5rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
@@ -43,32 +43,37 @@ body {
   color: #868e96;
 }
 
-/* 날짜 네비게이터 스타일 */
-.date-navigator {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* [추가] 주간 뷰 캘린더 스타일 */
+.weekly-calendar {
   background-color: #f8f9fa;
   border: 1px solid #e9ecef;
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
+  border-radius: 14px;
+  padding: 1.2rem;
   margin-bottom: 1.5rem;
 }
 
-.current-date {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #1a1a1a;
+.calendar-control {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0 0.2rem;
 }
 
-.date-nav-btn {
+.month-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #212529;
+}
+
+.nav-btn {
   background: none;
   border: none;
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: #672be0; /* 메인 테마 컬러 */
   cursor: pointer;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   justify-content: center;
@@ -76,9 +81,85 @@ body {
   transition: all 0.2s ease;
 }
 
-.date-nav-btn:hover {
+.nav-btn:hover {
   background-color: #eedfff;
-  color: #5320b8;
+}
+
+/* 요일 및 날짜 카드 가로 나열 컨테이너 */
+.days-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+/* 개별 날짜 카드 공통 스타일 */
+.day-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.6rem 0.2rem;
+  border-radius: 10px;
+  cursor: pointer;
+  background-color: #ffffff;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+}
+
+.day-card:hover {
+  border-color: #672be0;
+  transform: translateY(-1px);
+}
+
+.day-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #868e96;
+  margin-bottom: 0.3rem;
+}
+
+.day-number {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 0.2rem;
+}
+
+/* 할 일 개수 표시 배지 */
+.todo-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #868e96;
+  background-color: #f1f3f5;
+  padding: 1px 5px;
+  border-radius: 20px;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* [شرط] 오늘 날짜 시각적 구분 스타일 */
+.day-card.today {
+  border: 2px dashed #672be0;
+  background-color: #fbf9ff;
+}
+.day-card.today .day-number {
+  color: #672be0;
+}
+
+/* [조건] 현재 선택된 날짜 활성화 스타일 */
+.day-card.active {
+  background-color: #672be0; /* 메인 테마 컬러 */
+  border-color: #672be0;
+}
+
+.day-card.active .day-name,
+.day-card.active .day-number {
+  color: #ffffff;
+}
+
+.day-card.active .todo-badge {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
 }
 
 /* 입력 폼 스타일 */
