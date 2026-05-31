@@ -43,7 +43,7 @@ body {
   color: #868e96;
 }
 
-/* [추가] 날짜 네비게이터 스타일 */
+/* 날짜 네비게이터 스타일 */
 .date-navigator {
   display: flex;
   justify-content: space-between;
