@@ -4,80 +4,39 @@ import TodoFilter from "./components/TodoFilter";
 import TodoList from "./components/TodoList";
 import TodoDateNav from "./components/TodoDateNav";
 
-// 1단계에서 만든 날짜 유틸리티 함수 임포트
+// 리팩토링으로 신설한 유틸리티 및 커스텀 훅 임포트
 import { formatDateToString, getMondayOfDate } from "./utils/date";
+import { useTodos } from "./hooks/useTodos";
 
 export default function App() {
-  // [영속성] 기존 할 일 목록 로컬스토리지 복원
-  const [todos, setTodos] = useState(() => {
-    const savedTodos = localStorage.getItem("todos");
-    return savedTodos ? JSON.parse(savedTodos) : [];
-  });
+  // [비즈니스 로직 레이어 분리] 데이터와 핵심 액션을 훅에서 가져옵니다.
+  const { todos, createTodo, toggleComplete, updateText, deleteTodo } = useTodos();
 
-  // [UI 상태] 현재 포커싱된 특정 일자 (기본값: 오늘)
+  // [UI 상태 관리] 화면 전환에 필요한 순수 기획 상태들만 잔존
   const [currentDate, setCurrentDate] = useState(() => formatDateToString(new Date()));
-
-  // [UI 상태] 완료 여부 필터 조건 ('all', 'active', 'completed')
   const [currentFilter, setCurrentFilter] = useState("all");
-
-  // [UI 상태] 주간 뷰 기준일 상태 관리 (새로고침 대응 영속화)
   const [weekStartDate, setWeekStartDate] = useState(() => {
     const savedWeekStart = localStorage.getItem("weekStartDate");
     return savedWeekStart || formatDateToString(getMondayOfDate(new Date()));
   });
 
-  // 할 일 목록 데이터 변경 시 로컬스토리지 자동 저장
-  useEffect(() => {
-    localStorage.setItem("todos", JSON.stringify(todos));
-  }, [todos]);
-
-  // 주간 뷰 기준일 변경 시 로컬스토리지 자동 저장
+  // 주간 뷰 기준일 로컬스토리지 동기화
   useEffect(() => {
     localStorage.setItem("weekStartDate", weekStartDate);
   }, [weekStartDate]);
 
   /**
-   * 1. Create: 선택된 날짜(currentDate)를 주입하여 새로운 할 일 추가
-   */
-  const handleCreateTodo = (text) => {
-    const newTodo = {
-      id: Date.now(),
-      text: text,
-      completed: false,
-      date: currentDate, // 할 일이 어떤 날짜에 생성되었는지 기록
-    };
-    setTodos((prevTodos) => [...prevTodos, newTodo]);
-  };
-
-  const handleToggleComplete = (id) => {
-    setTodos((prevTodos) =>
-      prevTodos.map((todo) => (todo.id === id ? { ...todo, completed: !todo.completed } : todo))
-    );
-  };
-
-  const handleUpdateText = (id, newText) => {
-    setTodos((prevTodos) =>
-      prevTodos.map((todo) => (todo.id === id ? { ...todo, text: newText } : todo))
-    );
-  };
-
-  const handleDeleteTodo = (id) => {
-    setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
-  };
-
-  /**
-   * 주차 이동 핸들러 (유틸리티 함수를 기반으로 깔끔하게 처리)
+   * 주차 이동 핸들러 (연산 로직을 유틸리티 함수를 활용해 명확하게 리팩토링)
    */
   const handleNavigateWeek = (daysOffset) => {
     const [year, month, day] = weekStartDate.split("-").map(Number);
     const nextWeekStart = new Date(year, month - 1, day);
-    
     nextWeekStart.setDate(nextWeekStart.getDate() + daysOffset);
     setWeekStartDate(formatDateToString(nextWeekStart));
   };
 
   /**
-   * [이중 필터링 파이프라인] 선택 날짜 필터링 -> 완료 상태 필터링
+   * [이중 필터링 데이터 파이프라인] 화면 렌더링용 실시간 정제 데이터 연산
    */
   const filteredTodos = todos
     .filter((todo) => todo.date === currentDate)
@@ -96,7 +55,7 @@ export default function App() {
           <p className="text-xs text-gray-400 mt-1">지속 가능한 하루의 몰입을 서포트합니다.</p>
         </header>
 
-        {/* 주간 그리드 캘린더 내비게이션 바 */}
+        {/* 주간 캘린더 내비게이션 바 */}
         <TodoDateNav
           currentDate={currentDate}
           weekStartDate={weekStartDate}
@@ -105,18 +64,18 @@ export default function App() {
           onNavigateWeek={handleNavigateWeek}
         />
 
-        {/* 할 일 입력 컨트롤러 */}
-        <TodoInput onCreateTodo={handleCreateTodo} />
+        {/* 할 일 입력 컨트롤러 (현재 선택 날짜를 인자로 함께 주입하도록 훅과 연동) */}
+        <TodoInput onCreateTodo={(text) => createTodo(text, currentDate)} />
 
-        {/* 상태별 필터 탭 바 */}
+        {/* 상태별 필터 제어 탭 배너 */}
         <TodoFilter currentFilter={currentFilter} onChangeFilter={setCurrentFilter} />
 
-        {/* 할 일 목록 보드 */}
+        {/* 할 일 리스트 보드 */}
         <TodoList
           todos={filteredTodos}
-          onToggleComplete={handleToggleComplete}
-          onUpdateText={handleUpdateText}
-          onDelete={handleDeleteTodo}
+          onToggleComplete={toggleComplete}
+          onUpdateText={updateText}
+          onDelete={deleteTodo}
         />
         
       </div>
