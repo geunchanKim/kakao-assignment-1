@@ -1,122 +1,82 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect } from "react";
+import TodoInput from "./components/TodoInput";
+import TodoList from "./components/TodoList";
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  // [초기화] 로컬스토리지에 저장된 기존 할 일이 있다면 복원, 없다면 빈 배열로 기동
+  const [todos, setTodos] = useState(() => {
+    const savedTodos = localStorage.getItem("todos");
+    return savedTodos ? JSON.parse(savedTodos) : [];
+  });
+
+  // [영속성 관리] todos 상태가 변경될 때마다 자동으로 로컬스토리지에 동기화
+  useEffect(() => {
+    localStorage.setItem("todos", JSON.stringify(todos));
+  }, [todos]);
+
+  /**
+   * 1. Create: 새로운 할 일을 배열 추가하는 함수
+   */
+  const handleCreateTodo = (text) => {
+    const newTodo = {
+      id: Date.now(), // 고유 식별을 위한 타임스탬프 ID 생성
+      text: text,
+      completed: false,
+    };
+    setTodos((prevTodos) => [...prevTodos, newTodo]);
+  };
+
+  /**
+   * 2. Update (Toggle): 완료 여부를 반전시키는 토글 함수
+   */
+  const handleToggleComplete = (id) => {
+    setTodos((prevTodos) =>
+      prevTodos.map((todo) =>
+        todo.id === id ? { ...todo, completed: !todo.completed } : todo
+      )
+    );
+  };
+
+  /**
+   * 3. Update (Text): 내용을 수정하는 텍스트 갱신 함수
+   */
+  const handleUpdateText = (id, newText) => {
+    setTodos((prevTodos) =>
+      prevTodos.map((todo) =>
+        todo.id === id ? { ...todo, text: newText } : todo
+      )
+    );
+  };
+
+  /**
+   * 4. Delete: 특정 항목을 식별해 배열에서 완전히 삭제하는 함수
+   */
+  const handleDeleteTodo = (id) => {
+    setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="min-h-screen flex items-start justify-center px-4 py-16">
+      <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-xl border border-gray-50">
+        
+        {/* 헤더 타이틀 타이포그래피 */}
+        <header className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Task Manager</h1>
+          <p className="text-xs text-gray-400 mt-1">오늘도 몰입하는 하루를 만들어 볼까요?</p>
+        </header>
 
-      <div className="ticks"></div>
+        {/* 할 일 입력 컨트롤러 */}
+        <TodoInput onCreateTodo={handleCreateTodo} />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        {/* 할 일 리스트 보드 */}
+        <TodoList
+          todos={todos}
+          onToggleComplete={handleToggleComplete}
+          onUpdateText={handleUpdateText}
+          onDelete={handleDeleteTodo}
+        />
+        
+      </div>
+    </div>
+  );
 }
-
-export default App
