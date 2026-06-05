@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import TodoInput from "./components/TodoInput";
 import TodoFilter from "./components/TodoFilter";
 import TodoList from "./components/TodoList";
-import TodoDateNav from "./components/TodoDateNav"; // [신규 의존성 추가]
+import TodoDateNav from "./components/TodoDateNav";
 
 /**
- * Date 객체를 시스템 표준 포맷인 'YYYY-MM-DD' 문자열로 변환하는 전역 헬퍼 함수
+ * 전역 헬퍼: Date 인스턴스를 'YYYY-MM-DD' 스트링으로 캐싱
  */
 const formatDateToString = (date) => {
   const year = date.getFullYear();
@@ -14,87 +14,93 @@ const formatDateToString = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+/**
+ * 알고리즘: 인계받은 타겟 날짜의 해당 주차 월요일 날짜 객체를 깊은 복사 기반 추출
+ */
+const getMondayOfDate = (date) => {
+  const target = new Date(date);
+  const day = target.getDay(); // 0(일) ~ 6(토)
+  // 월요일과의 간격 도출 (일요일일 경우 이전 주 월요일(-6)로 상쇄 처리)
+  const diff = target.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(target.setDate(diff));
+};
+
 export default function App() {
-  // [영속성 관리] 로컬스토리지에 저장된 기존 할 일이 있다면 복원, 없다면 빈 배열 기동
+  // [영속성] 기존 할 일 목록 바인딩 복원
   const [todos, setTodos] = useState(() => {
     const savedTodos = localStorage.getItem("todos");
     return savedTodos ? JSON.parse(savedTodos) : [];
   });
 
-  // [필터 상태 관리] 현재 화면에 표시할 완료 상태 조건 (기본값: 'all')
-  const [currentFilter, setCurrentFilter] = useState("all");
-
-  // [신규: 날짜 상태 관리] 현재 선택된 일간 뷰 날짜 상태 (초기값: 오늘 날짜 'YYYY-MM-DD')
+  // [영속성 및 상태] 현재 포커싱된 특정 일자 (기본값: 오늘)
   const [currentDate, setCurrentDate] = useState(() => formatDateToString(new Date()));
 
-  // [영속성 관리] todos 상태가 변경될 때마다 자동으로 로컬스토리지에 동기화
+  // [필터 상태] 완료 여부 파티셔닝 조건
+  const [currentFilter, setCurrentFilter] = useState("all");
+
+  // [신규: 주간 영속성 상태 제어] 이번 주 월요일 기준일 상태 관리 (새로고침 대응 영속화 구조)
+  const [weekStartDate, setWeekStartDate] = useState(() => {
+    const savedWeekStart = localStorage.getItem("weekStartDate");
+    if (savedWeekStart) return savedWeekStart;
+    
+    // 저장된 주차가 없을 시 현시점 오늘 기준 주차의 월요일 연산 후 초기화
+    return formatDateToString(getMondayOfDate(new Date()));
+  });
+
+  // [영속성 동기화 파이프라인] 할 일 데이터 상태 변동 시 로컬 캐시 자동 보존
   useEffect(() => {
     localStorage.setItem("todos", JSON.stringify(todos));
   }, [todos]);
 
+  // [신규: 주간 기준일 동기화] 주차 스위칭 발생 시 로컬스토리지 데이터 자동 백업
+  useEffect(() => {
+    localStorage.setItem("weekStartDate", weekStartDate);
+  }, [weekStartDate]);
+
   /**
-   * 1. Create: 새로운 할 일을 배열에 추가하는 함수
-   * (현재 선택되어 띄워져 있는 currentDate 정보를 매핑하여 저장합니다)
+   * 1. Create: 선택된 날짜(currentDate) 메타데이터를 매핑하여 할 일 추가
    */
   const handleCreateTodo = (text) => {
     const newTodo = {
-      id: Date.now(), // 고유 식별용 타임스탬프
+      id: Date.now(),
       text: text,
       completed: false,
-      date: currentDate, // [신규 변동] 할 일이 귀속될 날짜 정보 주입
+      date: currentDate,
     };
     setTodos((prevTodos) => [...prevTodos, newTodo]);
   };
 
-  /**
-   * 2. Update (Toggle): 완료 여부를 반전시키는 토글 함수
-   */
   const handleToggleComplete = (id) => {
     setTodos((prevTodos) =>
-      prevTodos.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      )
+      prevTodos.map((todo) => (todo.id === id ? { ...todo, completed: !todo.completed } : todo))
     );
   };
 
-  /**
-   * 3. Update (Text): 내용을 수정하는 텍스트 갱신 함수
-   */
   const handleUpdateText = (id, newText) => {
     setTodos((prevTodos) =>
-      prevTodos.map((todo) =>
-        todo.id === id ? { ...todo, text: newText } : todo
-      )
+      prevTodos.map((todo) => (todo.id === id ? { ...todo, text: newText } : todo))
     );
   };
 
-  /**
-   * 4. Delete: 특정 항목을 식별해 배열에서 완전히 삭제하는 함수
-   */
   const handleDeleteTodo = (id) => {
     setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
   };
 
   /**
-   * [신규: 날짜 조정 핸들러] 일수를 더하거나 빼서 날짜 상태를 유기적으로 변경하는 함수
-   * @param {number} daysOffset - 변동할 일수 (이전 하루는 -1, 다음 하루는 1)
+   * [신규: 주차 점프 핸들러] 이전 주 / 다음 주로 주차 틀을 완전히 리매핑하는 가감 연산 함수
+   * @param {number} daysOffset - 일주일 기준 이동량 (-7 또는 7)
    */
-  const handleNavigateDate = (daysOffset) => {
-    const [year, month, day] = currentDate.split("-").map(Number);
-    // 자바스크립트 Date의 월 매개변수는 0부터 시작하므로 1을 차감하여 객체 생성
-    const targetDate = new Date(year, month - 1, day);
+  const handleNavigateWeek = (daysOffset) => {
+    const [year, month, day] = weekStartDate.split("-").map(Number);
+    const nextWeekStart = new Date(year, month - 1, day);
     
-    // 날짜 연산 시 브라우저가 월말/월초 연산을 자동으로 안전하게 처리해줍니다.
-    targetDate.setDate(targetDate.getDate() + daysOffset);
-    
-    // 연산된 결과를 다시 표준 문자열 포맷으로 변환하여 상태 갱신
-    setCurrentDate(formatDateToString(targetDate));
+    nextWeekStart.setDate(nextWeekStart.getDate() + daysOffset);
+    setWeekStartDate(formatDateToString(nextWeekStart));
   };
 
   /**
-   * [데이터 필터링 이중 파이프라인] 
-   * 1차 연산: 선택된 날짜와 일치하는 일기장 서랍을 먼저 필터링합니다.
-   * 2차 연산: 서랍 안에서 전체 / 진행 중 / 완료 조건 탭에 매칭되는 데이터만 최종 추출합니다.
+   * [이중 조건 데이터 정제 파이프라인]
+   * 캘린더에서 유저가 콕 집은 선택 일자(currentDate) 매칭 후 완료 유무 필터링 순차 연산
    */
   const filteredTodos = todos
     .filter((todo) => todo.date === currentDate)
@@ -108,28 +114,24 @@ export default function App() {
     <div className="min-h-screen flex items-start justify-center px-4 py-16">
       <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-xl border border-gray-50">
         
-        {/* 헤더 타이틀 타이포그래피 */}
         <header className="mb-4">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Task Manager</h1>
           <p className="text-xs text-gray-400 mt-1">지속 가능한 하루의 몰입을 서포트합니다.</p>
         </header>
 
-        {/* [신규 제어 장치] 일간 뷰 날짜 제어 탭 내비게이션 */}
-        <TodoDateNav 
-          currentDate={currentDate} 
-          onNavigateDate={handleNavigateDate} 
+        {/* [업그레이드 완료] 주간 그리드 제어식 캘린더 내비게이션 바 컴포넌트 */}
+        <TodoDateNav
+          currentDate={currentDate}
+          weekStartDate={weekStartDate}
+          todos={todos}
+          onSelectDate={setCurrentDate}
+          onNavigateWeek={handleNavigateWeek}
         />
 
-        {/* 할 일 입력 컨트롤러 */}
         <TodoInput onCreateTodo={handleCreateTodo} />
 
-        {/* 상태별 필터 제어 탭 배너 */}
-        <TodoFilter
-          currentFilter={currentFilter}
-          onChangeFilter={setCurrentFilter}
-        />
+        <TodoFilter currentFilter={currentFilter} onChangeFilter={setCurrentFilter} />
 
-        {/* 할 일 리스트 보드 (더블 필터링이 완료된 정제 배열 주입) */}
         <TodoList
           todos={filteredTodos}
           onToggleComplete={handleToggleComplete}
