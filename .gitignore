@@ -1,0 +1,29 @@
+# env
+.env
+.env.*
+!.env.example
+
+# frontend / node
+node_modules/
+.next/
+out/
+build/
+coverage/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+
+# backend / python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
