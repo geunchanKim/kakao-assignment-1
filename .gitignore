@@ -6,6 +6,8 @@ build/
 coverage/
 .vercel/
 *.tsbuildinfo
+package-lock.json
+favicon.ico
 
 # backend / python
 __pycache__/
@@ -21,5 +23,3 @@ venv/
 .idea/
 .vscode/
 
-#package-lock
-package-lock.json
