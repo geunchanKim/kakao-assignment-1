@@ -8,6 +8,7 @@ coverage/
 *.tsbuildinfo
 package-lock.json
 favicon.ico
+public/
 
 # backend / python
 __pycache__/
