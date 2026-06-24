@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, create_engine
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, create_engine, or_
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 
@@ -15,11 +15,9 @@ from sqlalchemy.orm import Session, declarative_base, sessionmaker
 # 환경 변수 설정
 # =========================
 
-# backend/.env.local 파일을 불러옵니다.
 env_path = Path(__file__).resolve().parent / ".env.local"
 load_dotenv(dotenv_path=env_path)
 
-# .env.local에 작성한 값을 그대로 가져와서 사용합니다.
 DATABASE_URL = os.getenv("DATABASE_URL")
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 API_TITLE = os.getenv("API_TITLE")
@@ -29,20 +27,17 @@ API_TITLE = os.getenv("API_TITLE")
 # DB 설정
 # =========================
 
-# SQLite DB 연결을 생성합니다.
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False},
 )
 
-# 요청마다 DB 세션을 만들기 위한 설정입니다.
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
     bind=engine,
 )
 
-# SQLAlchemy 모델이 상속받을 기본 클래스입니다.
 Base = declarative_base()
 
 
@@ -53,7 +48,6 @@ Base = declarative_base()
 class Todo(Base):
     """
     todos 테이블 구조를 정의하는 DB 모델입니다.
-    실제 데이터베이스에 저장되는 Todo 데이터 형태입니다.
     """
 
     __tablename__ = "todos"
@@ -78,7 +72,6 @@ class Todo(Base):
 class TodoCreate(BaseModel):
     """
     Todo 생성 요청 데이터입니다.
-    POST /todos 요청에서 사용됩니다.
     """
 
     title: str = Field(..., min_length=1, max_length=100)
@@ -88,10 +81,6 @@ class TodoCreate(BaseModel):
 class TodoUpdate(BaseModel):
     """
     Todo 수정 요청 데이터입니다.
-    PUT /todos/{id} 요청에서 사용됩니다.
-
-    모든 필드를 Optional로 두어,
-    요청에 들어온 값만 부분적으로 수정할 수 있게 합니다.
     """
 
     title: Optional[str] = Field(default=None, min_length=1, max_length=100)
@@ -102,7 +91,6 @@ class TodoUpdate(BaseModel):
 class TodoResponse(BaseModel):
     """
     Todo 응답 데이터입니다.
-    SQLAlchemy 모델 객체를 JSON 응답으로 변환할 때 사용합니다.
     """
 
     id: int
@@ -112,7 +100,6 @@ class TodoResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    # Pydantic v2에서 SQLAlchemy 객체를 응답으로 변환하기 위한 설정입니다.
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -189,17 +176,20 @@ def find_todo_or_404(db: Session, todo_id: int) -> Todo:
 @app.get("/todos", response_model=list[TodoResponse])
 def get_todos(
     filter: Optional[Literal["active", "completed"]] = Query(default=None),
+    search: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
 ):
     """
-    전체 Todo 목록 또는 필터링된 Todo 목록을 조회합니다.
+    Todo 목록을 조회합니다.
 
-    요청 예시:
+    지원하는 요청:
     - GET /todos
     - GET /todos?filter=active
     - GET /todos?filter=completed
+    - GET /todos?search=키워드
+    - GET /todos?filter=active&search=키워드
 
-    필터링은 클라이언트가 아니라 FastAPI 서버에서 처리합니다.
+    필터링과 검색은 클라이언트가 아니라 FastAPI 서버에서 처리합니다.
     """
 
     query = db.query(Todo)
@@ -212,7 +202,20 @@ def get_todos(
     if filter == "completed":
         query = query.filter(Todo.is_completed.is_(True))
 
-    # 최신 Todo가 위에 오도록 id 기준 내림차순 정렬합니다.
+    # 검색어가 있으면 title 또는 description에 검색어가 포함된 Todo만 조회합니다.
+    if search:
+        trimmed_search = search.strip()
+
+        if trimmed_search:
+            search_pattern = f"%{trimmed_search}%"
+
+            query = query.filter(
+                or_(
+                    Todo.title.ilike(search_pattern),
+                    Todo.description.ilike(search_pattern),
+                )
+            )
+
     todos = query.order_by(Todo.id.desc()).all()
 
     return todos
@@ -229,7 +232,6 @@ def create_todo(
 ):
     """
     새로운 Todo를 생성합니다.
-    생성 시 완료 상태는 기본적으로 False입니다.
     """
 
     new_todo = Todo(
@@ -253,12 +255,10 @@ def update_todo(
 ):
     """
     기존 Todo를 수정합니다.
-    요청에 포함된 필드만 골라서 업데이트합니다.
     """
 
     todo = find_todo_or_404(db=db, todo_id=id)
 
-    # 요청에 포함된 값만 추출합니다.
     update_data = todo_update.model_dump(exclude_unset=True)
 
     for field_name, field_value in update_data.items():
@@ -282,7 +282,6 @@ def delete_todo(
 ):
     """
     Todo를 삭제합니다.
-    삭제 성공 시 응답 본문 없이 204 상태 코드를 반환합니다.
     """
 
     todo = find_todo_or_404(db=db, todo_id=id)

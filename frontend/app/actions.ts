@@ -19,7 +19,6 @@ type Todo = {
 
 /**
  * 백엔드 API 주소가 설정되어 있는지 확인합니다.
- * 환경 변수가 없으면 명확한 에러 메시지를 보여줍니다.
  */
 function getBackendApiBaseUrl() {
   if (!BACKEND_API_BASE_URL) {
@@ -48,18 +47,35 @@ function getFormTextValue(formData: FormData, key: string) {
  * Todo 목록 조회 함수입니다.
  *
  * Server Component에서 직접 호출합니다.
- * filter 값이 active 또는 completed인 경우 FastAPI에 쿼리 파라미터로 전달합니다.
+ * filter와 search 값을 FastAPI에 쿼리 파라미터로 전달합니다.
  *
  * 요청 예시:
  * - GET /todos
  * - GET /todos?filter=active
- * - GET /todos?filter=completed
+ * - GET /todos?search=키워드
+ * - GET /todos?filter=active&search=키워드
  */
-export async function getTodosAction(filter: TodoFilter): Promise<Todo[]> {
+export async function getTodosAction(
+  filter: TodoFilter,
+  searchKeyword: string,
+): Promise<Todo[]> {
   const backendApiBaseUrl = getBackendApiBaseUrl();
 
+  const params: {
+    filter?: "active" | "completed";
+    search?: string;
+  } = {};
+
+  if (filter !== "all") {
+    params.filter = filter;
+  }
+
+  if (searchKeyword) {
+    params.search = searchKeyword;
+  }
+
   const response = await axios.get<Todo[]>(`${backendApiBaseUrl}/todos`, {
-    params: filter === "all" ? undefined : { filter },
+    params,
   });
 
   return response.data;
@@ -67,7 +83,6 @@ export async function getTodosAction(filter: TodoFilter): Promise<Todo[]> {
 
 /**
  * Todo 생성 Server Action입니다.
- * form에서 입력받은 데이터를 FastAPI의 POST /todos API로 전달합니다.
  */
 export async function createTodoAction(formData: FormData) {
   const backendApiBaseUrl = getBackendApiBaseUrl();
@@ -90,7 +105,6 @@ export async function createTodoAction(formData: FormData) {
 
 /**
  * Todo 수정 Server Action입니다.
- * todoId에 해당하는 Todo를 FastAPI의 PUT /todos/{id} API로 수정합니다.
  */
 export async function updateTodoAction(todoId: number, formData: FormData) {
   const backendApiBaseUrl = getBackendApiBaseUrl();
@@ -115,7 +129,6 @@ export async function updateTodoAction(todoId: number, formData: FormData) {
 
 /**
  * Todo 완료 상태를 변경하는 Server Action입니다.
- * 목록 페이지에서 완료/되돌리기 버튼을 눌렀을 때 사용합니다.
  */
 export async function toggleTodoCompletedAction(
   todoId: number,
@@ -132,7 +145,6 @@ export async function toggleTodoCompletedAction(
 
 /**
  * Todo 삭제 Server Action입니다.
- * hidden input으로 전달받은 todoId를 사용해 FastAPI의 DELETE /todos/{id} API를 호출합니다.
  */
 export async function deleteTodoAction(formData: FormData) {
   const backendApiBaseUrl = getBackendApiBaseUrl();

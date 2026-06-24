@@ -8,9 +8,7 @@ const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL;
  */
 function getBackendApiBaseUrl() {
   if (!BACKEND_API_BASE_URL) {
-    throw new Error(
-      "BACKEND_API_BASE_URL 환경 변수가 설정되지 않았습니다.",
-    );
+    throw new Error("BACKEND_API_BASE_URL 환경 변수가 설정되지 않았습니다.");
   }
 
   return BACKEND_API_BASE_URL;
@@ -42,7 +40,6 @@ function createErrorResponse(error: unknown) {
 
 /**
  * URL의 filter 값을 검사합니다.
- * FastAPI는 active, completed만 필터 값으로 받습니다.
  */
 function getValidTodoFilter(request: NextRequest) {
   const filter = request.nextUrl.searchParams.get("filter");
@@ -59,19 +56,38 @@ function getValidTodoFilter(request: NextRequest) {
 }
 
 /**
+ * URL의 search 값을 가져옵니다.
+ * 빈 문자열이면 검색 조건을 보내지 않습니다.
+ */
+function getSearchKeyword(request: NextRequest) {
+  const search = request.nextUrl.searchParams.get("search");
+
+  if (!search) {
+    return undefined;
+  }
+
+  const trimmedSearch = search.trim();
+
+  return trimmedSearch || undefined;
+}
+
+/**
  * GET /api/todos
  * GET /api/todos?filter=active
- * GET /api/todos?filter=completed
- *
- * FastAPI의 GET /todos API로 요청을 전달합니다.
+ * GET /api/todos?search=키워드
+ * GET /api/todos?filter=active&search=키워드
  */
 export async function GET(request: NextRequest) {
   try {
     const backendApiBaseUrl = getBackendApiBaseUrl();
     const filter = getValidTodoFilter(request);
+    const search = getSearchKeyword(request);
 
     const response = await axios.get(`${backendApiBaseUrl}/todos`, {
-      params: filter ? { filter } : undefined,
+      params: {
+        ...(filter ? { filter } : {}),
+        ...(search ? { search } : {}),
+      },
     });
 
     return NextResponse.json(response.data);
@@ -82,7 +98,6 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/todos
- * FastAPI의 POST /todos API를 호출해 새 Todo를 생성합니다.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -99,7 +114,6 @@ export async function POST(request: NextRequest) {
 
 /**
  * PUT /api/todos?id=1
- * FastAPI의 PUT /todos/{id} API를 호출해 Todo를 수정합니다.
  */
 export async function PUT(request: NextRequest) {
   try {
@@ -128,7 +142,6 @@ export async function PUT(request: NextRequest) {
 
 /**
  * DELETE /api/todos?id=1
- * FastAPI의 DELETE /todos/{id} API를 호출해 Todo를 삭제합니다.
  */
 export async function DELETE(request: NextRequest) {
   try {

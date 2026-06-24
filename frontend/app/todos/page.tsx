@@ -20,34 +20,30 @@ type TodoFilter = "all" | "active" | "completed";
 type TodoListPageProps = {
   searchParams?: Promise<{
     filter?: string;
+    search?: string;
   }>;
 };
 
 const filterTabs: {
   label: string;
   value: TodoFilter;
-  href: string;
 }[] = [
   {
     label: "전체",
     value: "all",
-    href: "/todos",
   },
   {
     label: "진행 중",
     value: "active",
-    href: "/todos?filter=active",
   },
   {
     label: "완료",
     value: "completed",
-    href: "/todos?filter=completed",
   },
 ];
 
 /**
  * URL의 filter 값을 앱에서 사용하는 필터 값으로 변환합니다.
- * 잘못된 filter 값이 들어오면 전체 목록으로 처리합니다.
  */
 function getSelectedFilter(filter?: string): TodoFilter {
   if (filter === "active" || filter === "completed") {
@@ -55,6 +51,37 @@ function getSelectedFilter(filter?: string): TodoFilter {
   }
 
   return "all";
+}
+
+/**
+ * URL의 search 값을 검색어로 변환합니다.
+ */
+function getSearchKeyword(search?: string) {
+  if (!search) {
+    return "";
+  }
+
+  return search.trim();
+}
+
+/**
+ * 필터 탭 클릭 시 이동할 URL을 생성합니다.
+ * 현재 검색어가 있으면 검색어를 유지한 채 필터만 변경합니다.
+ */
+function createFilterHref(filter: TodoFilter, searchKeyword: string) {
+  const params = new URLSearchParams();
+
+  if (filter !== "all") {
+    params.set("filter", filter);
+  }
+
+  if (searchKeyword) {
+    params.set("search", searchKeyword);
+  }
+
+  const queryString = params.toString();
+
+  return queryString ? `/todos?${queryString}` : "/todos";
 }
 
 /**
@@ -69,9 +96,16 @@ function formatDate(dateString: string) {
 }
 
 /**
- * 현재 필터 상태에 맞는 빈 목록 안내 문구를 반환합니다.
+ * 현재 필터와 검색어에 맞는 빈 목록 안내 문구를 반환합니다.
  */
-function getEmptyMessage(filter: TodoFilter) {
+function getEmptyMessage(filter: TodoFilter, searchKeyword: string) {
+  if (searchKeyword) {
+    return {
+      title: "검색 결과가 없어요.",
+      description: `"${searchKeyword}"에 해당하는 Todo를 찾지 못했습니다.`,
+    };
+  }
+
   if (filter === "active") {
     return {
       title: "진행 중인 Todo가 없어요.",
@@ -96,13 +130,15 @@ export default async function TodoListPage({
   searchParams,
 }: TodoListPageProps) {
   const resolvedSearchParams = await searchParams;
+
   const selectedFilter = getSelectedFilter(resolvedSearchParams?.filter);
+  const searchKeyword = getSearchKeyword(resolvedSearchParams?.search);
 
-  // URL 필터 값을 FastAPI 서버로 전달합니다.
-  // 실제 필터링은 클라이언트가 아니라 FastAPI에서 처리됩니다.
-  const todos: Todo[] = await getTodosAction(selectedFilter);
+  // URL의 filter, search 값을 FastAPI 서버로 전달합니다.
+  // 실제 필터링과 검색은 클라이언트가 아니라 FastAPI 서버에서 처리됩니다.
+  const todos: Todo[] = await getTodosAction(selectedFilter, searchKeyword);
 
-  const emptyMessage = getEmptyMessage(selectedFilter);
+  const emptyMessage = getEmptyMessage(selectedFilter, searchKeyword);
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10">
@@ -116,7 +152,7 @@ export default async function TodoListPage({
               오늘의 할 일
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              URL 필터를 사용해 전체, 진행 중, 완료 Todo를 관리해보세요.
+              URL 필터와 검색을 사용해 Todo를 관리해보세요.
             </p>
           </div>
 
@@ -128,15 +164,16 @@ export default async function TodoListPage({
           </Link>
         </div>
 
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+        <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
           <nav className="grid grid-cols-3 gap-2" aria-label="Todo 필터">
             {filterTabs.map((tab) => {
               const isActive = selectedFilter === tab.value;
+              const href = createFilterHref(tab.value, searchKeyword);
 
               return (
                 <Link
                   key={tab.value}
-                  href={tab.href}
+                  href={href}
                   className={`rounded-xl px-4 py-3 text-center text-sm font-semibold transition ${
                     isActive
                       ? "bg-[#672be0] text-white shadow-sm"
@@ -150,6 +187,70 @@ export default async function TodoListPage({
           </nav>
         </div>
 
+        <form
+          action="/todos"
+          method="get"
+          className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+        >
+          {selectedFilter !== "all" && (
+            <input type="hidden" name="filter" value={selectedFilter} />
+          )}
+
+          <label
+            htmlFor="search"
+            className="mb-2 block text-sm font-semibold text-slate-700"
+          >
+            Todo 검색
+          </label>
+
+          <div className="flex gap-2">
+            <input
+              id="search"
+              name="search"
+              type="search"
+              defaultValue={searchKeyword}
+              placeholder="제목 또는 설명으로 검색해보세요."
+              className="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-[#672be0] focus:ring-4 focus:ring-[#672be0]/10"
+            />
+
+            <button
+              type="submit"
+              className="rounded-xl bg-[#672be0] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+            >
+              검색
+            </button>
+
+            {searchKeyword && (
+              <Link
+                href={createFilterHref(selectedFilter, "")}
+                className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+              >
+                초기화
+              </Link>
+            )}
+          </div>
+        </form>
+
+        {(selectedFilter !== "all" || searchKeyword) && (
+          <div className="mb-5 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+            <span>현재 조건:</span>
+
+            <span className="rounded-full bg-[#672be0]/10 px-3 py-1 font-semibold text-[#672be0]">
+              {selectedFilter === "all"
+                ? "전체"
+                : selectedFilter === "active"
+                  ? "진행 중"
+                  : "완료"}
+            </span>
+
+            {searchKeyword && (
+              <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-600">
+                검색어: {searchKeyword}
+              </span>
+            )}
+          </div>
+        )}
+
         {todos.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
             <h2 className="text-lg font-semibold text-slate-800">
@@ -158,6 +259,7 @@ export default async function TodoListPage({
             <p className="mt-2 text-sm text-slate-500">
               {emptyMessage.description}
             </p>
+
             <Link
               href="/todos/new"
               className="mt-6 inline-flex rounded-xl bg-[#672be0] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
