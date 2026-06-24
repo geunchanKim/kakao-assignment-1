@@ -1,10 +1,10 @@
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, create_engine
@@ -16,11 +16,10 @@ from sqlalchemy.orm import Session, declarative_base, sessionmaker
 # =========================
 
 # backend/.env.local 파일을 불러옵니다.
-# Python은 Next.js처럼 .env.local을 자동으로 읽지 않기 때문에 이 설정이 필요합니다.
 env_path = Path(__file__).resolve().parent / ".env.local"
 load_dotenv(dotenv_path=env_path)
 
-# .env.local에 적어둔 변수명을 그대로 가져와서 사용합니다.
+# .env.local에 작성한 값을 그대로 가져와서 사용합니다.
 DATABASE_URL = os.getenv("DATABASE_URL")
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 API_TITLE = os.getenv("API_TITLE")
@@ -36,7 +35,7 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
 )
 
-# 요청마다 DB 세션을 생성하기 위한 설정입니다.
+# 요청마다 DB 세션을 만들기 위한 설정입니다.
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -54,6 +53,7 @@ Base = declarative_base()
 class Todo(Base):
     """
     todos 테이블 구조를 정의하는 DB 모델입니다.
+    실제 데이터베이스에 저장되는 Todo 데이터 형태입니다.
     """
 
     __tablename__ = "todos"
@@ -78,7 +78,7 @@ class Todo(Base):
 class TodoCreate(BaseModel):
     """
     Todo 생성 요청 데이터입니다.
-    POST /todos에서 사용합니다.
+    POST /todos 요청에서 사용됩니다.
     """
 
     title: str = Field(..., min_length=1, max_length=100)
@@ -88,7 +88,10 @@ class TodoCreate(BaseModel):
 class TodoUpdate(BaseModel):
     """
     Todo 수정 요청 데이터입니다.
-    PUT /todos/{id}에서 사용합니다.
+    PUT /todos/{id} 요청에서 사용됩니다.
+
+    모든 필드를 Optional로 두어,
+    요청에 들어온 값만 부분적으로 수정할 수 있게 합니다.
     """
 
     title: Optional[str] = Field(default=None, min_length=1, max_length=100)
@@ -99,6 +102,7 @@ class TodoUpdate(BaseModel):
 class TodoResponse(BaseModel):
     """
     Todo 응답 데이터입니다.
+    SQLAlchemy 모델 객체를 JSON 응답으로 변환할 때 사용합니다.
     """
 
     id: int
@@ -130,7 +134,6 @@ app = FastAPI(title=API_TITLE)
 # CORS 설정
 # =========================
 
-# .env.local의 FRONTEND_URL 값을 그대로 사용합니다.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[FRONTEND_URL],
@@ -147,7 +150,7 @@ app.add_middleware(
 def get_db():
     """
     API 요청마다 DB 세션을 생성하고,
-    요청이 끝나면 세션을 닫습니다.
+    요청 처리가 끝나면 세션을 닫습니다.
     """
 
     db = SessionLocal()
@@ -159,12 +162,12 @@ def get_db():
 
 
 # =========================
-# 공통 함수
+# 공통 조회 함수
 # =========================
 
 def find_todo_or_404(db: Session, todo_id: int) -> Todo:
     """
-    id로 Todo를 조회하고,
+    id로 Todo를 조회합니다.
     존재하지 않으면 404 에러를 발생시킵니다.
     """
 
@@ -184,12 +187,34 @@ def find_todo_or_404(db: Session, todo_id: int) -> Todo:
 # =========================
 
 @app.get("/todos", response_model=list[TodoResponse])
-def get_todos(db: Session = Depends(get_db)):
+def get_todos(
+    filter: Optional[Literal["active", "completed"]] = Query(default=None),
+    db: Session = Depends(get_db),
+):
     """
-    전체 Todo 목록을 조회합니다.
+    전체 Todo 목록 또는 필터링된 Todo 목록을 조회합니다.
+
+    요청 예시:
+    - GET /todos
+    - GET /todos?filter=active
+    - GET /todos?filter=completed
+
+    필터링은 클라이언트가 아니라 FastAPI 서버에서 처리합니다.
     """
 
-    todos = db.query(Todo).order_by(Todo.id.desc()).all()
+    query = db.query(Todo)
+
+    # 진행 중 Todo만 조회합니다.
+    if filter == "active":
+        query = query.filter(Todo.is_completed.is_(False))
+
+    # 완료 Todo만 조회합니다.
+    if filter == "completed":
+        query = query.filter(Todo.is_completed.is_(True))
+
+    # 최신 Todo가 위에 오도록 id 기준 내림차순 정렬합니다.
+    todos = query.order_by(Todo.id.desc()).all()
+
     return todos
 
 
@@ -203,7 +228,8 @@ def create_todo(
     db: Session = Depends(get_db),
 ):
     """
-    새 Todo를 생성합니다.
+    새로운 Todo를 생성합니다.
+    생성 시 완료 상태는 기본적으로 False입니다.
     """
 
     new_todo = Todo(
@@ -227,11 +253,12 @@ def update_todo(
 ):
     """
     기존 Todo를 수정합니다.
+    요청에 포함된 필드만 골라서 업데이트합니다.
     """
 
     todo = find_todo_or_404(db=db, todo_id=id)
 
-    # 요청에 포함된 값만 골라서 수정합니다.
+    # 요청에 포함된 값만 추출합니다.
     update_data = todo_update.model_dump(exclude_unset=True)
 
     for field_name, field_value in update_data.items():
@@ -255,6 +282,7 @@ def delete_todo(
 ):
     """
     Todo를 삭제합니다.
+    삭제 성공 시 응답 본문 없이 204 상태 코드를 반환합니다.
     """
 
     todo = find_todo_or_404(db=db, todo_id=id)

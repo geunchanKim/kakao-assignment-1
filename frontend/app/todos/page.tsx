@@ -1,8 +1,8 @@
-import axios from "axios";
 import Link from "next/link";
 
 import {
   deleteTodoAction,
+  getTodosAction,
   toggleTodoCompletedAction,
 } from "../actions";
 
@@ -15,16 +15,46 @@ type Todo = {
   updated_at: string;
 };
 
-const BACKEND_API_BASE_URL = process.env.BACKEND_API_BASE_URL;
+type TodoFilter = "all" | "active" | "completed";
+
+type TodoListPageProps = {
+  searchParams?: Promise<{
+    filter?: string;
+  }>;
+};
+
+const filterTabs: {
+  label: string;
+  value: TodoFilter;
+  href: string;
+}[] = [
+  {
+    label: "전체",
+    value: "all",
+    href: "/todos",
+  },
+  {
+    label: "진행 중",
+    value: "active",
+    href: "/todos?filter=active",
+  },
+  {
+    label: "완료",
+    value: "completed",
+    href: "/todos?filter=completed",
+  },
+];
 
 /**
- * Todo 목록을 백엔드 FastAPI 서버에서 가져옵니다.
- * 이 함수는 Server Component 안에서 실행되므로 브라우저가 아니라 서버에서 호출됩니다.
+ * URL의 filter 값을 앱에서 사용하는 필터 값으로 변환합니다.
+ * 잘못된 filter 값이 들어오면 전체 목록으로 처리합니다.
  */
-async function getTodos(): Promise<Todo[]> {
-  const response = await axios.get<Todo[]>(`${BACKEND_API_BASE_URL}/todos`);
+function getSelectedFilter(filter?: string): TodoFilter {
+  if (filter === "active" || filter === "completed") {
+    return filter;
+  }
 
-  return response.data;
+  return "all";
 }
 
 /**
@@ -38,13 +68,46 @@ function formatDate(dateString: string) {
   });
 }
 
-export default async function TodoListPage() {
-  const todos = await getTodos();
+/**
+ * 현재 필터 상태에 맞는 빈 목록 안내 문구를 반환합니다.
+ */
+function getEmptyMessage(filter: TodoFilter) {
+  if (filter === "active") {
+    return {
+      title: "진행 중인 Todo가 없어요.",
+      description: "현재 남아 있는 할 일이 없습니다.",
+    };
+  }
+
+  if (filter === "completed") {
+    return {
+      title: "완료된 Todo가 없어요.",
+      description: "완료한 할 일이 생기면 이곳에 표시됩니다.",
+    };
+  }
+
+  return {
+    title: "아직 등록된 Todo가 없어요.",
+    description: "첫 번째 할 일을 추가해보세요.",
+  };
+}
+
+export default async function TodoListPage({
+  searchParams,
+}: TodoListPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const selectedFilter = getSelectedFilter(resolvedSearchParams?.filter);
+
+  // URL 필터 값을 FastAPI 서버로 전달합니다.
+  // 실제 필터링은 클라이언트가 아니라 FastAPI에서 처리됩니다.
+  const todos: Todo[] = await getTodosAction(selectedFilter);
+
+  const emptyMessage = getEmptyMessage(selectedFilter);
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10">
       <section className="mx-auto max-w-3xl">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex items-center justify-between gap-4">
           <div>
             <p className="mb-2 text-sm font-semibold text-[#672be0]">
               Productivity Todo
@@ -53,25 +116,47 @@ export default async function TodoListPage() {
               오늘의 할 일
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              해야 할 일을 정리하고 완료 상태를 관리해보세요.
+              URL 필터를 사용해 전체, 진행 중, 완료 Todo를 관리해보세요.
             </p>
           </div>
 
           <Link
             href="/todos/new"
-            className="rounded-xl bg-[#672be0] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+            className="shrink-0 rounded-xl bg-[#672be0] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
           >
             새 Todo
           </Link>
         </div>
 
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+          <nav className="grid grid-cols-3 gap-2" aria-label="Todo 필터">
+            {filterTabs.map((tab) => {
+              const isActive = selectedFilter === tab.value;
+
+              return (
+                <Link
+                  key={tab.value}
+                  href={tab.href}
+                  className={`rounded-xl px-4 py-3 text-center text-sm font-semibold transition ${
+                    isActive
+                      ? "bg-[#672be0] text-white shadow-sm"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+                  }`}
+                >
+                  {tab.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
         {todos.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
             <h2 className="text-lg font-semibold text-slate-800">
-              아직 등록된 Todo가 없어요.
+              {emptyMessage.title}
             </h2>
             <p className="mt-2 text-sm text-slate-500">
-              첫 번째 할 일을 추가해보세요.
+              {emptyMessage.description}
             </p>
             <Link
               href="/todos/new"
